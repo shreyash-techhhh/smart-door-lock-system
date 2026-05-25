@@ -1,0 +1,72 @@
+#include <SPI.h>
+#include <MFRC522.h>
+#include <Servo.h>
+
+#define SS_PIN 5
+#define RST_PIN 22
+#define BUZZER 2
+
+MFRC522 rfid(SS_PIN, RST_PIN);
+Servo doorServo;
+
+String authorizedUID = "12 34 56 78";
+
+void setup() {
+  Serial.begin(115200);
+  SPI.begin();
+
+  rfid.PCD_Init();
+
+  pinMode(BUZZER, OUTPUT);
+
+  doorServo.attach(15);
+  doorServo.write(0);
+
+  Serial.println("Smart Door Lock System");
+}
+
+void loop() {
+
+  if (!rfid.PICC_IsNewCardPresent()) {
+    return;
+  }
+
+  if (!rfid.PICC_ReadCardSerial()) {
+    return;
+  }
+
+  String cardUID = "";
+
+  for (byte i = 0; i < rfid.uid.size; i++) {
+    cardUID += String(rfid.uid.uidByte[i] < 0x10 ? "0" : "");
+    cardUID += String(rfid.uid.uidByte[i], HEX);
+    cardUID += " ";
+  }
+
+  cardUID.toUpperCase();
+
+  Serial.println(cardUID);
+
+  if (cardUID.substring(0, 11) == authorizedUID) {
+
+    Serial.println("Access Granted");
+
+    doorServo.write(90);
+
+    delay(3000);
+
+    doorServo.write(0);
+
+  } else {
+
+    Serial.println("Access Denied");
+
+    digitalWrite(BUZZER, HIGH);
+
+    delay(3000);
+
+    digitalWrite(BUZZER, LOW);
+  }
+
+  rfid.PICC_HaltA();
+}
